@@ -1,0 +1,117 @@
+package auth
+
+import (
+	"fmt"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/austineyoyogie/go-hardware-store/api-jwt-auth/models"
+	"github.com/austineyoyogie/go-hardware-store/configs"
+	"github.com/austineyoyogie/go-hardware-store/utils"
+	"github.com/dgrijalva/jwt-go"
+)
+
+// Try this to see  => https://dev.to/techschoolguru/how-to-create-and-verify-jwt-paseto-token-in-golang-1l5j
+// https://codewithmukesh.com/blog/jwt-authentication-in-golang/
+// https://www.sohamkamani.com/golang/jwt-authentication/
+
+var c = configs.LoadConfigs()
+
+func GenerateJWT(user *models.User) (string, error) {
+
+	// atClaims := jwt.MapClaims{}
+  	// atClaims["authorized"] = true
+  	// atClaims["user_id"] = user.Email
+  	// atClaims["exp"] = time.Now().Add(time.Minute * 15).Unix()
+	
+	 claims := jwt.StandardClaims {
+	 	Issuer: string(user.Email), //-> good to use as well
+		//Issuer: strconv.Itoa(int(user.ID)),
+	 	IssuedAt: time.Now().Unix(),
+	 	ExpiresAt: time.Now().Add(time.Minute * 15).Unix(),
+	 }
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := token.SignedString([]byte(c.JWT.SecretKey))
+	if err != nil {
+		return "", err
+	}
+	return tokenString, nil
+}
+
+// Django Jwt
+//  {
+// 	"token_type": "access",
+// 	"exp": 1637825818,
+// 	"jti": "99382df0c1d94e2ba446c573150e0f5c",
+// 	"user_id": 1
+//   }
+// {
+// 	"token_type": "refresh",
+// 	"exp": 1637911918,
+// 	"jti": "abfbee662cbb46f9a95156fa5a814077",
+// 	"user_id": 1
+//   }
+
+func RefreshJWT(user *models.User) (string, error) {
+	
+	//user := &models.User{}
+
+	// {
+	// 	"exp": 1643148589,
+	// 	"iat": 1643147689,
+	// 	"iss": "Austine"
+	// }
+
+	claims := jwt.StandardClaims {
+		//Issuer: string(user.Email), -> good to use as well
+		Issuer: strconv.Itoa(int(user.ID)),
+		IssuedAt: time.Now().Unix(),
+		ExpiresAt: time.Now().Add(time.Minute * 60).Unix(),
+	}
+
+	refresh := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	refreshString, err := refresh.SignedString([]byte(c.JWT.SecretKey))
+	if err != nil {
+		return "", err
+	}
+	return refreshString, nil
+}
+
+// https://www.youtube.com/watch?v=YA6cVebkwJE
+
+func ExtractToken(r *http.Request) string {
+	bearerToken := r.Header.Get("Authorization")
+	if len(strings.Split(bearerToken, " ")) == 2 {
+		return strings.Split(bearerToken, " ")[1]
+	}
+	return ""
+}
+
+func TokenVerifyMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+	    authToken := ExtractToken(r)
+
+		token, err := jwt.Parse(authToken, func(token *jwt.Token)(interface{}, error) {	
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+			}
+			return []byte(c.JWT.SecretKey), nil
+		})
+
+		if err != nil {
+			utils.ResponseWithError(w, http.StatusUnauthorized, err.Error())
+			return
+		}
+	    
+	    if token.Valid {
+			next.ServeHTTP(w, r)
+		} else {
+			utils.ResponseWithError(w, http.StatusUnauthorized, "Not Authorizated")
+		}
+	})
+}
+

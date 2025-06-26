@@ -1,0 +1,131 @@
+package auth_controllers
+
+import (
+	"encoding/json"
+	"github.com/austineyoyogie/go-hardware-store/api-jwt-auth/auth"
+	"github.com/austineyoyogie/go-hardware-store/api-jwt-auth/auth_repository"
+	"github.com/austineyoyogie/go-hardware-store/api-jwt-auth/models"
+	"github.com/austineyoyogie/go-hardware-store/utils"
+	"io/ioutil"
+	"log"
+	"net/http"
+)
+
+type LoginController interface {
+	PostLogin(http.ResponseWriter, *http.Request)
+	RefreshToken(http.ResponseWriter, *http.Request)
+}
+
+type loginControllerImpl struct {
+	loginRepository auth_repository.LoginRepository
+}
+
+func UserLoginController(loginRepository auth_repository.LoginRepository) *loginControllerImpl {
+	return &loginControllerImpl{loginRepository}
+}
+
+func (u *loginControllerImpl) PostLogin(w http.ResponseWriter, r *http.Request) {
+
+	if r.Body != nil {
+		defer r.Body.Close()
+	}
+	bytes, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		utils.WriteError(w, err, http.StatusUnprocessableEntity)
+		return
+	}
+
+	jwt := &models.JWT{}
+	user := &models.User{}
+	err = json.Unmarshal(bytes, &user)
+	if err != nil {
+		utils.WriteError(w, err, http.StatusUnprocessableEntity)
+		return
+	}
+
+	err = user.UserLoginValidate()
+	if err != nil {
+		utils.WriteError(w, err, http.StatusBadRequest)
+		return
+	}
+
+	var password = user.Password
+
+	user, err = u.loginRepository.FindByEmail(user.Email)
+	if err != nil {
+		utils.ResponseWithError(w, http.StatusUnauthorized, "Ohoo.. Invalid credentials")
+		return
+	}
+	token, err := auth.GenerateJWT(user)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	refresh, err := auth.RefreshJWT(user)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	hashPassword := user.Password
+	hashCheck := utils.ComparePassword(password, hashPassword)
+
+	if hashCheck {
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("Authorization", token)
+		jwt.Token = token
+		jwt.Refresh = refresh
+
+		utils.WriteAsJson(w, struct {
+			Token   string `json:"access_token"`
+			Refresh string `json:"refresh_token"`
+		}{
+			Token: token,
+			Refresh: refresh,
+		})
+	} else {
+		utils.ResponseWithError(w, http.StatusUnauthorized, "Invalid credentials")
+	}
+}
+
+func (u *loginControllerImpl) RefreshToken(w http.ResponseWriter, r *http.Request) {
+
+	if r.Body != nil {
+		defer r.Body.Close()
+	}
+
+	bytes, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		utils.WriteError(w, err, http.StatusUnprocessableEntity)
+		return
+	}
+
+	jwt := &models.JWT{}
+	user := &models.User{}
+
+	err = json.Unmarshal(bytes, &user)
+	if err != nil {
+		utils.WriteError(w, err, http.StatusUnprocessableEntity)
+		return
+	}
+	refresh, err := auth.RefreshJWT(user)
+	if err != nil {
+		log.Fatal(err)
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Authorization", refresh)
+
+	jwt.Refresh = refresh
+	utils.WriteAsJson(w, struct {
+		Refresh string `json:"refresh_token"`
+	}{
+		Refresh: refresh,
+	})
+}
+
+// 10 Golang RESTful API Dengan MySQL + Gin + Gorm + JWT - Auth Service
+// https://www.youtube.com/watch?v=KmZT2tY4QXA
+
+// 006 - Golang - Adding refresh token for user login - Finance App
+// https://www.youtube.com/watch?v=k_BoEz1bt_g

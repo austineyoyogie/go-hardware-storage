@@ -1,0 +1,32 @@
+
+
+psql -h localhost -p 5432 -U austine gohardwarestore
+
+blockcoin=# \! clear
+blockcoin=# \d+ users
+blockcoin=# \d+ wallets
+=======================
+gohardwarestore=> \d+ categories
+gohardwarestore=> \d+ products
+
+db, err := gorm.Open("postgres", "postgres://austine:lmk9a3dc@localhost/gohardwarestore?sslmode=disable")
+db, err := gorm.Open(g.DBC.Driver, g.DBC.Type+"://"+g.DBC.Username+":"+g.DBC.Password+"@"+g.DBC.Hostname+"/"+g.DBC.Database+"?sslmode=disable")
+
+
+// ^[+]*[(]{0,1}[0-9]{1,4}[)]{0,1}[-\s\./0-9]*$
+
+{
+    "first_name": "Austine",
+    "last_name": "Owoh",
+    "email": "austine@local.com",
+    "password": "lmk9a3dc",
+    "telephone": "0123",
+    "active": true,
+    "verify": true,
+    "permission_id": 1,
+}
+
+UPDATE users SET token ='jwmgvMMIjyPzVHl2hC65huuq0LMy.0yEYlBSzstTw4JYDUpno07qi' WHERE ID = 85;
+
+
+// Golang Gin Framework Crash Course 10 | Getting Started with GORM (Golang's ORM library)

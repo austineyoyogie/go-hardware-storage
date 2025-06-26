@@ -1,0 +1,35 @@
+.registration {
+    position: fixed;
+    width: 40%;
+    padding: 30px;
+    background: rgba($color: #f3eeee, $alpha: 1.0);
+    border: 1px solid rgba($color: #f1c4c4, $alpha: 1.0);
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+.input {
+    display: inline-block;
+    width: 100%;
+    padding: 10px;
+    margin: 5px;
+    margin-left: 0px;
+    margin-right: 10xp;
+}
+.input {
+    outline: none;
+}
+.err {
+    color: red;
+}
+.btn {
+    padding: 10px 20px;
+    background: rgba($color: #f1c4c4, $alpha: 1.0);
+    border-radius: 2px;
+    margin-top: 10px;
+    color: #fff;
+    font-weight: 600;
+}
+.btn:hover {
+    background: rgba($color: #f3eeee, $alpha: 1.0);
+}
